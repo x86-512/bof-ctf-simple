@@ -73,7 +73,7 @@ class Exploit:
                 self.getTimeout()
                 self.getPrefix()
                 self.getArch()
-                self.loadedFile = False #It's 10PM, I forgot my solution so I'll settle with this
+                self.loadedFile = False
                 break
             else:
                 self.openSave()
